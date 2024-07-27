@@ -1,0 +1,47 @@
+```{r}
+Jaini Shah
+QBS 103 Final Project
+Summer 2024
+
+Submission #1
+```
+
+```{r}
+library(dplyr)
+# set the working directory to where my csv file is located
+getwd()
+setwd("/Users/jainishah/Desktop/final_project_data")
+
+#reading gene expression data and metadata files 
+gene_expression <- read.csv("genes.csv")
+metadata <- read.csv("metadata.csv")
+
+head(gene_expression)
+head(metadata)
+
+
+# checking structure of gene expression data and metadata data 
+str(gene_expression)
+str(metadata)
+
+# merging the two data files 
+combined_data <- merge(gene_expression, metadata, by="ParticipantID")
+
+colnames(gene_expression) 
+colnames(metadata)
+# extracting the chosen continuous covariate (age) and 2 categorical covariates (sex and icu status)
+covariates <- combined_data %>%
+  select(ParticipantID, age, sex, icu_status)
+
+# display first few rows of the selection variables 
+head(covariates)
+```
+
+
+
+```{r}
+Histogram 
+
+
+```
+
