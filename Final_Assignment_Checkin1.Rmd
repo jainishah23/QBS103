@@ -8,6 +8,7 @@ Submission #1
 
 ```{r}
 library(dplyr)
+library(tidyr)
 # set the working directory to where my csv file is located
 getwd()
 setwd("/Users/jainishah/Desktop/final_project_data")
@@ -19,22 +20,45 @@ metadata <- read.csv("metadata.csv")
 head(gene_expression)
 head(metadata)
 
-
 # checking structure of gene expression data and metadata data 
 str(gene_expression)
 str(metadata)
 
-# merging the two data files 
-combined_data <- merge(gene_expression, metadata, by="ParticipantID")
+# melting gene_expression data from wide data to long data so the two files can be merged 
+gene_long <- gene_expression %>%
+  tidyr::gather(key = "ParticipantID", value = "Expression", -X)
 
-colnames(gene_expression) 
-colnames(metadata)
-# extracting the chosen continuous covariate (age) and 2 categorical covariates (sex and icu status)
-covariates <- combined_data %>%
-  select(ParticipantID, age, sex, icu_status)
+# renaming the gene column to "Gene"
+names(gene_long)[names(gene_long) == "X"] <- "Gene"
 
-# display first few rows of the selection variables 
-head(covariates)
+# checking the first 6 rows of the melted data
+head(gene_long)
+
+# merging the melted gene expression data with the metadata using the shared column of "ParticipantID"
+merged_data <- merge(gene_long, metadata, by.x = "ParticipantID", by.y = "participant_id")
+
+head(merged_data)
+
+# filtered data using 'filter(Gene == A1CF) to only extract rows for where the gene is A1CF
+# selecting columns for the covariate variables that I picked 
+clean_data <- merged_data %>%
+  filter(Gene == "A1CF") %>%
+  select(Gene, ParticipantID, age, sex, icu_status)
+
+head(clean_data)
+
+# checking data types of the columns
+str(clean_data)
+
+# converting age data to numeric - if not already
+clean_data$age <- as.numeric(clean_data$age)
+
+# converting sex and icu_status to factors - if not already
+clean_data$sex <- as.factor(clean_data$sex)
+clean_data$icu_status <- as.factor(clean_data$icu_status)
+
+# confirming conversions 
+str(clean_data)
 ```
 
 
