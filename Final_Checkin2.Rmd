@@ -1,0 +1,148 @@
+---
+title: 'Final_CheckIn2'
+output: pdf_document
+date: '2024-08-05'
+---
+```{r}
+# Build a function to create the plots you made for Presentation 1, incorporating feedback you received from your first presentation on improving plot design. Your functions should take the following input: (1) the name of the data frame, (2) a list of 1 or more gene names, (3) 1 continuous covariate, and (4) two categorical covariates (10 pts)
+```
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+
+getwd()
+setwd('/Users/jainishah/Desktop/final_project_data')
+
+gene_expression <- read.csv('genes.csv')
+metadata <- read.csv('metadata.csv')
+
+
+gene_long <- gene_expression %>%
+  tidyr::gather(key = 'ParticipantID', value = 'Expression', -X)
+
+names(gene_long)[names(gene_long) == 'X'] <- 'Gene'
+
+
+merged_data <- merge(gene_long, metadata, by.x = 'ParticipantID', by.y = 'participant_id')
+
+
+clean_data <- merged_data %>%
+  filter(Gene == Gene) %>%
+  select(Gene, ParticipantID,Expression, age, sex, icu_status)
+
+clean_data$age <- as.numeric(clean_data$age)
+clean_data$sex <- as.factor(clean_data$sex)
+clean_data$icu_status <- as.factor(clean_data$icu_status)
+clean_data$Expression <- as.numeric(clean_data$Expression)
+
+#str(clean_data)
+
+final_data <- clean_data %>%
+  filter(!is.na(sex) & sex != ' unknown',
+         !is.na(icu_status) & icu_status != ' unknown')
+
+#print(colnames(final_data))
+#print(head(final_data))
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(harrypotter)
+library(tidyr)
+
+gene_plots <- function(final_data, gene_expression, continuous_covar, categorical_covar1, categorical_covar2) {
+  for (Gene in gene_expression) {
+
+    
+    clean_data <- merged_data %>%
+      filter(Gene == !!Gene) %>%
+      select(Gene, ParticipantID,Expression, age, sex, icu_status)
+    
+    clean_data$age <- as.numeric(clean_data$age)
+    clean_data$sex <- as.factor(clean_data$sex)
+    clean_data$icu_status <- as.factor(clean_data$icu_status)
+    clean_data$Expression <- as.numeric(clean_data$Expression)
+    
+    final_data <- clean_data %>%
+      filter(!is.na(sex) & sex != ' unknown',
+         !is.na(icu_status) & icu_status != ' unknown')
+
+
+    # Histogram for 'ABCA1'
+    histogram <- ggplot(final_data, aes(x = Expression)) + 
+    geom_histogram(fill = 'pink', color = 'red', binwidth = 1.5) +
+  # plots the histogram with bars outlined and filled
+    labs(title = paste('Histogram of Gene Expression for ',Gene), # adds title and axis labels
+       x = paste('Gene Expression: ', Gene),
+       y = 'Frequency') + 
+    theme_minimal() + # applied minimal theme for appearance 
+    theme( # making the titles of plot and axis bold
+      plot.title = element_text(hjust = 0.5, face = 'bold'),
+      axis.title = element_text(face = 'bold'),
+      legend.title = element_text(face = 'bold')
+    )
+
+    # Scatterplot for 'ABCA1' vs 'age'
+    scatterplot <- ggplot(final_data,aes(x = age,y = Expression)) + 
+      geom_point(aes(color=age)) + 
+      scale_color_gradient(low = "green", high = "blue") + # color gradient for age 
+      labs(title = paste('Scatterplot of Gene Expression for', Gene, 'vs. Age (yrs.)'), # title for plot and axis 
+           subtitle = "Color indicates age, ranging from green (young) to blue (old)",
+            x = "Age (yrs.)",
+            y = paste("Gene Expression:", Gene),
+           color = "Age") + 
+      theme_minimal() +
+      theme( # making the titles of axis and plot bold 
+        plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5), 
+        axis.title = element_text(face = "bold"),
+        legend.title = element_text(face = "bold")
+    ) +
+# adding a smooth line to show trend in data 
+      geom_smooth(method = "loess", se = FALSE, color = "black", linetype = "dashed")
+    
+
+    # Boxplot by 'sex' and 'icu_status'
+    boxplot <- ggplot(final_data,aes_string(x = categorical_covar1 ,y = 'Expression', fill = categorical_covar2)) +
+      geom_boxplot(outlier.shape = 10, outlier.size = 2, color = 'darkgray', lwd = 0.8, alpha = 0.7) +
+      scale_fill_hp_d(option = 'lunalovegood') + # change border color and box details 
+      facet_wrap(~ icu_status) + # separate plots by ICU status
+      labs(title = 'Boxplot of Gene Expression by Sex and ICU Status', # assigned titles for axis and plot 
+       x = categorical_covar1,
+       y = paste('Gene Expression', Gene),
+       fill = 'ICU Status') + 
+      theme_minimal(base_size = 15) + # minimal theme with font size 
+      theme( # making the titles of axis and plot bold, changing placement of titles 
+        plot.title = element_text(hjust = 0.125, face = 'bold'),
+        axis.title = element_text(face = 'bold'),
+        legend.title = element_text(face = 'bold')
+      )
+
+    
+
+    # Print the plots
+    print(histogram)
+    print(scatterplot)
+    print(boxplot)
+  
+  }
+}
+
+
+
+# Example call to function
+gene_plots(final_data, c('ABCA1'), 'age', 'sex', 'icu_status')
+
+
+```
+
+
+
+
+
+
