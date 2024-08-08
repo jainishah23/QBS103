@@ -57,19 +57,21 @@ library(dplyr)
 library(harrypotter)
 library(tidyr)
 
+# creating a function that takes 5 parameters 
 gene_plots <- function(final_data, gene_expression, continuous_covar, categorical_covar1, categorical_covar2) {
-  for (Gene in gene_expression) {
-
+  for (Gene in gene_expression) { # starts a loop that iterates over every gene in the 'gene_expression' vector to generate the following plots 
     
     clean_data <- merged_data %>%
       filter(Gene == !!Gene) %>%
       select(Gene, ParticipantID,Expression, age, sex, icu_status)
     
+    # cleaning my data to make sure everything is in correct format 
     clean_data$age <- as.numeric(clean_data$age)
     clean_data$sex <- as.factor(clean_data$sex)
     clean_data$icu_status <- as.factor(clean_data$icu_status)
     clean_data$Expression <- as.numeric(clean_data$Expression)
     
+    # final data that has all info in correct format and no unknowns included
     final_data <- clean_data %>%
       filter(!is.na(sex) & sex != ' unknown',
          !is.na(icu_status) & icu_status != ' unknown')
@@ -105,7 +107,7 @@ gene_plots <- function(final_data, gene_expression, continuous_covar, categorica
         axis.title = element_text(face = "bold"),
         legend.title = element_text(face = "bold")
     ) +
-# adding a smooth line to show trend in data 
+    # adding a smooth line to show trend in data 
       geom_smooth(method = "loess", se = FALSE, color = "black", linetype = "dashed")
     
 
@@ -136,7 +138,7 @@ gene_plots <- function(final_data, gene_expression, continuous_covar, categorica
 }
 
 
-# Example call to function
+# Calling the function
 gene_plots(final_data, c('ABCA1'), 'age', 'sex', 'icu_status')
 
 
@@ -209,7 +211,7 @@ gene_plots <- function(final_data, gene_expression, continuous_covar, categorica
       scale_fill_hp_d(option = 'lunalovegood') + # change border color and box details 
       facet_wrap(~ icu_status) + # separate plots by ICU status
       labs(title = 'Boxplot of Gene Expression by Sex and ICU Status', # assigned titles for axis and plot 
-       x = categorical_covar1,
+       x = str_to_title(categorical_covar1), # capitalizing first letter of 'categorical_covar1'
        y = paste('Gene Expression', Gene),
        fill = 'ICU Status') + 
       theme_minimal(base_size = 15) + # minimal theme with font size 
@@ -230,8 +232,8 @@ gene_plots <- function(final_data, gene_expression, continuous_covar, categorica
 }
 
 
-# Example call to function
-gene_plots(final_data, c('ABCA1','ABCA2','ABCA3'), 'age', 'sex', 'icu_status')
+# Calling the function
+gene_plots(final_data, c('ABCA1','ABCA2','ABAT'), 'age', 'sex', 'icu_status')
 
 ```
 
