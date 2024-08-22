@@ -1,0 +1,224 @@
+---
+title: "Final_Project"
+output: pdf_document
+date: "2024-08-20"
+---
+```{r}
+
+library(dplyr)
+library(tidyr)
+
+setwd("/Users/jainishah/Desktop/final_project_data")
+gene_expression <- read.csv("genes.csv")
+metadata <- read.csv("metadata.csv")
+
+
+gene_long <- gene_expression %>%
+  tidyr::gather(key = "ParticipantID", value = "Expression", -X)
+
+names(gene_long)[names(gene_long) == "X"] <- "Gene"
+
+
+merged_data <- merge(gene_long, metadata, by.x = "ParticipantID", by.y = "participant_id")
+
+clean_data <- merged_data %>%
+  filter(Gene == "ABCA1") %>%
+  select(Gene, ParticipantID, Expression, `age`, `ferritin.ng.ml.`, `lactate.mmol.l.`, `sex`, `icu_status`, `disease_status`)
+  #rename(`Age` = age,
+         #`Ferritin (ng/mL)` = `ferritin.ng.ml.`, 
+         #`Lactate (mmol/L)` = `lactate.mmol.l.`, 
+         #`Sex` = sex, 
+         #`Icu Status` = `icu_status`, 
+         #`COVID Status` = `disease_status`)
+
+
+clean_data$age <- as.numeric(clean_data$age)
+clean_data$ferritin.ng.ml. <- as.numeric(clean_data$ferritin.ng.ml.)
+clean_data$lactate.mmol.l. <- as.numeric(clean_data$lactate.mmol.l.)
+clean_data$sex <- as.factor(clean_data$sex)
+clean_data$icu_status <- as.factor(clean_data$icu_status)
+clean_data$disease_status <- as.factor(clean_data$disease_status)
+
+
+
+final_data <- clean_data %>%
+  filter(!is.na(sex) & sex != " unknown",
+         !is.na(icu_status) & icu_status != " unknown",
+         !is.na(age) & age != " unknown",
+         !is.na(ferritin.ng.ml.) & ferritin.ng.ml. != " unknown",
+         !is.na(lactate.mmol.l.) & lactate.mmol.l. != " unknown",
+         !is.na(disease_status) & disease_status != " unknown") %>%
+  select(Gene, ParticipantID, Expression, age, ferritin.ng.ml., lactate.mmol.l., sex, icu_status, disease_status)
+
+head(final_data)
+
+```
+
+```{r}
+# Stratifying by one of your categorical variables
+# Tables should report n (%) for categorical variables 
+# Tables should report mean (sd) or median [IQR] for continuous variables
+
+library(dplyr)
+
+
+# calclating summary statistics for continuous variables stratified by ICU status
+summary_stats <- aggregate(cbind(age, ferritin_ng_ml, lactate_mmol_l) ~ icu_status, data = final_data, 
+                           FUN = function(x) c(mean = mean(x, na.rm = TRUE), sd = sd(x, na.rm = TRUE), 
+                                               median = median(x, na.rm = TRUE), 
+                                               IQR_lower = quantile(x, 0.25, na.rm = TRUE), 
+                                               IQR_upper = quantile(x, 0.75, na.rm = TRUE)))
+
+# calculating counts and percentages for categorical variables
+sex_counts <- table(final_data$icu_status, final_data$sex)
+covid_counts <- table(final_data$icu_status, final_data$disease_status)
+
+
+summary_stats <- data.frame(icu_status = summary_stats$icu_status,
+                            age_mean_sd = paste0(round(summary_stats$age[, "mean"], 2), " (", round(summary_stats$age[, "sd"], 2), ")"),
+                            ferritin_median_iqr = paste0(round(summary_stats$ferritin_ng_ml[, "median"], 2), " [", 
+                                                         round(summary_stats$ferritin_ng_ml[, "IQR_lower"], 2), "-", 
+                                                         round(summary_stats$ferritin_ng_ml[, "IQR_upper"], 2), "]"),
+                            lactate_median_iqr = paste0(round(summary_stats$lactate_mmol_l[, "median"], 2), " [", 
+                                                        round(summary_stats$lactate_mmol_l[, "IQR_lower"], 2), "-", 
+                                                        round(summary_stats$lactate_mmol_l[, "IQR_upper"], 2), "]"))
+
+# adding counts and percentages to the summary_stats df
+summary_stats$Male_percentage <- paste0(sex_counts[, "male"], " (", round(100 * sex_counts[, "male"] / rowSums(sex_counts), 2), "%)")
+summary_stats$Female_percentage <- paste0(sex_counts[, "female"], " (", round(100 * sex_counts[, "female"] / rowSums(sex_counts), 2), "%)")
+summary_stats$COVID_positive <- covid_counts[, "positive"]
+summary_stats$COVID_negative <- covid_counts[, "negative"]
+
+
+```
+
+
+
+```{r}
+# Generate final histogram, scatter plot, and boxplot from submission 1 (i.e. only for your first gene of interest) incorporating all feedback from your presentations 
+
+
+# Histogram for Gene Expression
+library(ggplot2)
+
+# initializes the plot with 'final_data' and maps all 'Expression' values to the x-axis
+ggplot(final_data, aes(x = Expression)) + 
+  geom_histogram(fill = "pink", color = "red") +
+  # plots the histogram with bars outlined and filled
+  labs(title = "Histogram of Gene Expression for ABCA1", # adds title and axis labels
+       x = "Gene Expression: ABCA1",
+       y = "Frequency") + 
+  theme_minimal() + # applied minimal theme for appearance 
+  theme( # making the titles of plot and axis bold
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_text(face = "bold")
+  )
+
+
+
+
+
+# Scatterplot for gene expression and continuous covariate (Age)
+library(ggplot2)
+
+# initializes the plot with 'final_data' and maps all 'age' values to x-axis 'Expression' values to the y-axis
+ggplot(final_data,aes(x = age,y = Expression ,color = age)) + 
+  geom_point() + 
+  scale_color_gradient(low = "green", high = "blue") + # color gradient for age 
+  labs(title = "Scatterplot of Gene Expression for ABCA1 vs. Age (yrs.)", # title for plot and axis 
+       subtitle = "Color indicates age, ranging from green (young) to blue (old)",
+       x = "Age (yrs.)",
+       y = "Gene Expression: ABCA1",
+       color = "Age") + 
+  theme_minimal() +
+  theme( # making the titles of axis and plot bold 
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5), 
+    axis.title = element_text(face = "bold"),
+    legend.title = element_text(face = "bold")
+  ) +
+
+# adding a smooth line to show trend in data 
+geom_smooth(method = "loess", se = FALSE, color = "black", linetype = "dashed")
+
+
+
+
+
+# Boxplot of gene expression separated by both categorical covariates (Sex and ICU Status)
+library(ggplot2)
+library(harrypotter)
+
+# create boxplot with categorical covariates 
+ggplot(final_data,aes(x = sex ,y = Expression, fill = icu_status)) +
+   geom_boxplot(outlier.shape = 12, outlier.size = 2, color = "darkgray", lwd = 0.8, alpha = 0.7) + 
+    scale_fill_hp_d(option = "ronweasley") + # change border color and box details 
+  facet_wrap(~ icu_status) + # separate plots by ICU status
+  labs(title = "Boxplot of Gene Expression by Sex and ICU Status", # assigned titles for axis and plot 
+       x = "Sex",
+       y = "Gene Expression",
+       fill = "ICU Status") + 
+  theme_minimal(base_size = 15) + # minimal theme with font size 
+  theme( # making the titles of axis and plot bold, changing placement of titles 
+    plot.title = element_text(hjust = 0.125, face = "bold"),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_text(face = "bold")
+  ) 
+```
+
+
+```{r}
+# Generate a heatmap (5 pts)
+# Heatmap should include at least 10 genes
+# Include tracking bars for the 2 categorical covariates in your boxplot
+# Heatmaps should include clustered rows and columns 
+
+
+library(pheatmap)
+library(dplyr)
+library(tidyr)
+library(tibble)
+
+heatmap_data <- final_data %>%
+  filter(Gene %in% c('ABCA1','ABCA2', 'ABAT', 'A2M', 'A1BG', 'AAMDC', 'ABCA8','ABCA10','ABCA7','AASS')) %>%
+  select(Gene, ParticipantID, Expression, sex, icu_status)
+
+heatmap_matrix <- heatmap_data %>%
+  spread(key = ParticipantID, value = Expression)
+
+rownames(final_data) <- make.unique(rownames(final_data))
+
+rownames(heatmap_matrix) <- heatmap_matrix$Gene
+heatmap_matrix <- as.matrix(heatmap_matrix[,-1])
+
+final_data <- final_data %>%
+  mutate(age_range = cut(age, braks = c(20, 40, 60, 80), labels = c('20-40','40-60','60-80','>80')))
+
+annotation_data <- final_data %>%
+  select(ParticipantID, sex, icu_status) %>%
+  unique () %>%
+  column_to_rownames('ParticipantID')
+
+annotation_colors <- list(
+  sex = c("male" = "aquamarine4", "female" = "pink"),
+  icu_status = c("yes" = "royalblue", "no" = "deepskyblue"),
+  age_range = c('20-40' = 'gold', '40-60' = 'orange3', '60-80' = 'firebrick', '>80' = 'red')
+)
+
+pheatmap(heatmap_matrix,
+         annotation_col = annotation_data,
+         annotation_Colors = annotation_colors,
+         clustering_distance_rows = 'euclidean',
+         clustering_distance_cols = 'euclidean',
+         clustering_method = 'complete',
+         show_rownames = TRUE,
+         show_colnames = FALSE,
+         fontsize_row = 10,
+         annotation_legend = TRUE,
+         annotation_names_col = TRUE,
+         main = 'Heatmap of Gene Expression with Categorical Covariates (Age (yrs.), Sex, ICU Status)')
+
+```
+
+
