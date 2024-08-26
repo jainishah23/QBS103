@@ -58,6 +58,7 @@ plot_data <- clean_data %>% # creating new df for 3 plots by selectin relevant c
 
 library(tableone)
 library(dplyr)
+library(tidyr)
 
 
 table_data <- clean_data %>% # converts data from long to wide format 
@@ -81,7 +82,7 @@ table1 <- CreateTableOne(vars = c(categorical_vars, continuous_vars), # function
                          strata = "Disease_Status", data = table_data, factorVars = categorical_vars) # stratifying the data by disease_status
 
 
-print(table1, nonnormal = continuous_vars, showAllLevels = TRUE) # displaying table1
+print(table1, showAllLevels = TRUE, formatOptions = list(big.mark = ",")) # displaying table1
 
 
 ```
@@ -100,26 +101,26 @@ table_data <- clean_data %>% # converts data from long to wide format
 clean_data <- na.omit(clean_data)
 
 df_n_sex <- as.data.frame(table(clean_data$sex, clean_data$disease_status))
-colnames(df_n_sex) <- c('sex', 'disease_status', 'N')
+colnames(df_n_sex) <- c('var1', 'disease_status', 'N')
 
 df_n_icu <- as.data.frame(table(clean_data$icu_status, clean_data$disease_status))
-colnames(df_n_icu) <- c('icu_status','disease_status', 'N')
+colnames(df_n_icu) <- c('var1','disease_status', 'N')
 
 
 
 df_p_sex <- as.data.frame(prop.table(table(clean_data$sex, clean_data$disease_status), margin = 2))
-colnames(df_p_sex) <- c('sex', 'disease_status', 'Percent')
+colnames(df_p_sex) <- c('var1', 'disease_status', 'Percent')
 df_p_sex$Percent <- df_p_sex$Percent * 100
 
 df_p_icu <- as.data.frame(prop.table(table(clean_data$icu_status, clean_data$disease_status), margin = 2))
-colnames(df_p_icu) <- c('icu_status','disease_status','Percent')
+colnames(df_p_icu) <- c('var1','disease_status','Percent')
 df_p_icu$Percent <- df_p_icu$Percent * 100
 
 
 
-final_df_sex <- dplyr::inner_join(df_n_sex, df_p_sex, by = c('sex','disease_status'))
+final_df_sex <- dplyr::inner_join(df_n_sex, df_p_sex, by = c('var1','disease_status'))
 
-final_df_icu <- dplyr::inner_join(df_n_icu, df_p_icu, by = c('icu_status','disease_status'))
+final_df_icu <- dplyr::inner_join(df_n_icu, df_p_icu, by = c('var1','disease_status'))
 
 
 final_df_sex <- final_df_sex %>% 
@@ -129,10 +130,12 @@ final_df_icu <- final_df_icu %>%
   dplyr::mutate(nice_format = paste0(N, ' (', round(Percent, 1), '%)'))
 
 
-df_all_categorical <- dplyr::bind_rows(final_df_sex, final_df_icu)
+df_all_categorical <- dplyr::bind_rows(final_df_sex, final_df_icu) %>% 
+  dplyr::select(c('var1','disease_status','nice_format'))
 
 cat_table <- df_all_categorical %>%
-  tidyr::pivot_wider(names_from = disease_status, values_from = nice_format)
+  tidyr::pivot_wider(names_from = disease_status, values_from = nice_format) %>% 
+  dplyr::filter(var1 != ' unknown')
 
 
 
@@ -158,8 +161,10 @@ pos_vars <- clean_data %>% filter(disease_status == "Positive")
 neg_vars <- clean_data %>% filter(disease_status == "Negative")
 
 
-pos_summary <- data.frame(apply(pos_vars %>% select(age, ferritin.ng.ml., lactate.mmol.l.), 2, contSummary))
-neg_summary <- data.frame(apply(neg_vars %>% select(age, ferritin.ng.ml., lactate.mmol.l.), 2, contSummary))
+pos_summary <- as.data.frame(apply(pos_vars %>% 
+                                     dplyr::select(age, ferritin.ng.ml., lactate.mmol.l.), 2, FUN = function(x) {contSummary(x, normal = TRUE)}))
+neg_summary <- as.data.frame(apply(neg_vars %>% 
+                                     dplyr::select(age, ferritin.ng.ml., lactate.mmol.l.), 2, FUN = function(x) {contSummary(x, normal = TRUE)}))
 
 
 cont_table <- merge(pos_summary, neg_summary, by = "row.names")
@@ -169,9 +174,8 @@ colnames(cont_table) <- c("Variables", "Covid.Positive", "Covid.Negative")
 print(cont_table)
 
 
-final_table <- df_all_categorical %>%
-  dplyr::select(c("sex", "icu_status", "Covid.Positive", "Covid.Negative")) %>% 
-  dplyr::rename(Variables = Var1, Covid.Positive = `Covid-19 Positive`, Covid.Negative = `Covid-19 Negative`)
+final_table <- cat_table %>%
+  dplyr::rename('Variables' = 'var1', 'Covid.Positive' = 'disease state: COVID-19', 'Covid.Negative' = 'disease state: non-COVID-19')
 
 
 
