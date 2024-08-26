@@ -228,7 +228,7 @@ library(dplyr)
 
 ggplot(clean_data, aes(x = age, y = Expression, size = ferritin.ng.ml., color = ferritin.ng.ml.)) +
   geom_point(alpha = 0.6) +
-  scale_size(range = c(3, 10)) +  
+  scale_size(range = c(3, 7)) +  
   scale_color_gradient(low = 'pink', high = 'red') +
   labs(title = "Bubble Plot of Gene Expression (ABCA1) by Age and Ferritin Levels",
        x = "Age",
