@@ -233,7 +233,7 @@ ggplot(clean_data, aes(x = age, y = Expression, size = ferritin.ng.ml., color = 
   labs(title = "Bubble Plot of Gene Expression (ABCA1) by Age and Ferritin Levels",
        x = "Age",
        y = "Gene Expression",
-       size = "Ferritin (ng/ml)",
+       size = "Ferritin (ng/ml)", 
        color = 'Ferritin (ng/mL)') +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5, face = "bold"),
