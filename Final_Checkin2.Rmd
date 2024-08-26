@@ -3,12 +3,12 @@ title: 'Final_CheckIn2'
 output: pdf_document
 date: '2024-08-05'
 ---
-```{r}
+```{r beginning}
 # Build a function to create the plots you made for Presentation 1, incorporating feedback you received from your first presentation on improving plot design. Your functions should take the following input: (1) the name of the data frame, (2) a list of 1 or more gene names, (3) 1 continuous covariate, and (4) two categorical covariates (10 pts)
 ```
 
 
-```{r}
+```{r cleaning data}
 library(dplyr)
 library(tidyr)
 
@@ -49,7 +49,7 @@ final_data <- clean_data %>%
 ```
 
 
-```{r}
+```{r building func}
 # •	Build a function to create the plots you made for Presentation 1, incorporating feedback you received from your first presentation on improving plot design. Your functions should take the following input: (1) the name of the data frame, (2) a list of 1 or more gene names, (3) 1 continuous covariate, and (4) two categorical covariates (10 pts)
 
 library(ggplot2)
@@ -145,13 +145,14 @@ gene_plots(final_data, c('ABCA1'), 'age', 'sex', 'icu_status')
 ```
 
 
-```{r}
+```{r selecting additional gene}
 # Select 2 additional genes (for a total of 3 genes) to look at and implement a loop to generate your figures using the function you created (10 pts)
 
 library(ggplot2)
 library(dplyr)
 library(harrypotter)
 library(tidyr)
+library(stringr)
 
 gene_plots <- function(final_data, gene_expression, continuous_covar, categorical_covar1, categorical_covar2) {
   for (Gene in gene_expression) {
@@ -211,7 +212,7 @@ gene_plots <- function(final_data, gene_expression, continuous_covar, categorica
       scale_fill_hp_d(option = 'lunalovegood') + # change border color and box details 
       facet_wrap(~ icu_status) + # separate plots by ICU status
       labs(title = 'Boxplot of Gene Expression by Sex and ICU Status', # assigned titles for axis and plot 
-       x = str_to_title(categorical_covar1), # capitalizing first letter of 'categorical_covar1'
+       x = stringr::str_to_title(categorical_covar1), # capitalizing first letter of 'categorical_covar1'
        y = paste('Gene Expression', Gene),
        fill = 'ICU Status') + 
       theme_minimal(base_size = 15) + # minimal theme with font size 
@@ -233,7 +234,7 @@ gene_plots <- function(final_data, gene_expression, continuous_covar, categorica
 
 
 # Calling the function
-gene_plots(final_data, c('ABCA1','ABCA2','ABAT'), 'age', 'sex', 'icu_status')
+suppressWarnings(gene_plots(final_data, c('ABCA1','ABCA2','ABAT'), 'age', 'sex', 'icu_status'))
 
 ```
 
