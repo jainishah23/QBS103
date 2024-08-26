@@ -8,26 +8,24 @@ date: "2024-08-20"
 library(dplyr)
 library(tidyr)
 
-setwd("/Users/jainishah/Desktop/final_project_data")
-gene_expression <- read.csv("genes.csv")
+setwd("/Users/jainishah/Desktop/final_project_data") # set working directory
+gene_expression <- read.csv("genes.csv") # reading csv files 
 metadata <- read.csv("metadata.csv")
 
-setwd("/Users/jainishah/Desktop/final_project_data")
 
-gene_long <- gene_expression %>%
-  tidyr::gather(key = "ParticipantID", value = "Expression", -X)
+gene_long <- gene_expression %>% # converts data from wide to long format 
+  tidyr::gather(key = "ParticipantID", value = "Expression", -X) # 'key' column is 'ParticipantID' and 'value' column is 'Expression'
 
-names(gene_long)[names(gene_long) == "X"] <- "Gene"
+names(gene_long)[names(gene_long) == "X"] <- "Gene" # renames the 'X' column to 'Gene'
 
-merged_data <- merge(gene_long, metadata, by.x = "ParticipantID", by.y = "participant_id")
-head(merged_data)
+merged_data <- merge(gene_long, metadata, by.x = "ParticipantID", by.y = "participant_id") # combines dfs
 
 
-clean_data <- merged_data %>%
+clean_data <- merged_data %>% # extracting specific columns from 'merged data' 
   filter(Gene == Gene) %>%
   select(Gene, ParticipantID, Expression, age, ferritin.ng.ml., lactate.mmol.l., sex, icu_status, disease_status)
 
-
+# cleaning 'clean_data' df 
 clean_data$age <- as.numeric(clean_data$age)
 clean_data$ferritin.ng.ml. <- as.numeric(clean_data$ferritin.ng.ml.)
 clean_data$lactate.mmol.l. <- as.numeric(clean_data$lactate.mmol.l.)
@@ -36,12 +34,14 @@ clean_data$icu_status <- as.factor(clean_data$icu_status)
 clean_data$disease_status <- as.factor(clean_data$disease_status)
 
 
-clean_data <- na.omit(clean_data)
-clean_data[clean_data == ' uknown'] <- NA 
 
-plot_data <- clean_data %>%
+clean_data[clean_data == ' unknown'] <- NA # replaces 'unknown' with 'NA'
+
+clean_data <- na.omit(clean_data) # removes NA rows 
+
+plot_data <- clean_data %>% # creating new df for 3 plots by selectin relevant columns from 'clean_data' df 
   select(Gene, ParticipantID, Expression, age, ferritin.ng.ml., lactate.mmol.l., sex, icu_status, disease_status) %>% 
-  filter(Gene == 'ABCA1')
+  filter(Gene == 'ABCA1') # specifically using 'ABCA1' column
 
 
 ```
@@ -51,33 +51,138 @@ plot_data <- clean_data %>%
 # Tables should report n (%) for categorical variables 
 # Tables should report mean (sd) or median [IQR] for continuous variables
 
+#install.packages('tableone') Prof Meghan suggested to use this package to create table 
+
+#https://www.rdocumentation.org/packages/tableone/versions/0.13.2/topics/CreateTableOne used this site to work with tableone package 
+
+
+library(tableone)
 library(dplyr)
 
 
-table_data <- clean_data %>%
+table_data <- clean_data %>% # converts data from long to wide format 
+  tidyr::pivot_wider(names_from = Gene, values_from = Expression) %>% #
+  dplyr::select(c('age', 'ferritin.ng.ml.', 'lactate.mmol.l.', 'sex', 'icu_status', 'disease_status')) %>% # extracting relevant columns
+  dplyr::rename( # renaming the columns to be labeled properly 
+    Age = age,
+    Ferritin = ferritin.ng.ml.,
+    Lactate = lactate.mmol.l.,
+    Sex = sex,
+    ICU_Status = icu_status,
+    Disease_Status = disease_status
+  )
+
+
+categorical_vars <- c("Sex", "ICU_Status") # defining categorical variables 
+continuous_vars <- c("Age", "Ferritin", "Lactate") # defining continuous variables 
+
+
+table1 <- CreateTableOne(vars = c(categorical_vars, continuous_vars), # function generates table with cont. and cat. variables
+                         strata = "Disease_Status", data = table_data, factorVars = categorical_vars) # stratifying the data by disease_status
+
+
+print(table1, nonnormal = continuous_vars, showAllLevels = TRUE) # displaying table1
+
+
+```
+
+
+```{r}
+
+library(dplyr)
+library(tidyr)
+library(knitr)
+
+table_data <- clean_data %>% # converts data from long to wide format 
   tidyr::pivot_wider(names_from = Gene, values_from = Expression) %>% 
-  dplyr::select(c('age', 'ferritin.ng.ml.', 'lactate.mmol.l.', 'sex', 'icu_status', 'disease_status'))
+  dplyr::select(c('age', 'ferritin.ng.ml.', 'lactate.mmol.l.', 'sex', 'icu_status', 'disease_status')) # extracting relevant columns
+
+clean_data <- na.omit(clean_data)
+
+df_n_sex <- as.data.frame(table(clean_data$sex, clean_data$disease_status))
+colnames(df_n_sex) <- c('sex', 'disease_status', 'N')
+
+df_n_icu <- as.data.frame(table(clean_data$icu_status, clean_data$disease_status))
+colnames(df_n_icu) <- c('icu_status','disease_status', 'N')
+
+
+
+df_p_sex <- as.data.frame(prop.table(table(clean_data$sex, clean_data$disease_status), margin = 2))
+colnames(df_p_sex) <- c('sex', 'disease_status', 'Percent')
+df_p_sex$Percent <- df_p_sex$Percent * 100
+
+df_p_icu <- as.data.frame(prop.table(table(clean_data$icu_status, clean_data$disease_status), margin = 2))
+colnames(df_p_icu) <- c('icu_status','disease_status','Percent')
+df_p_icu$Percent <- df_p_icu$Percent * 100
+
+
+
+final_df_sex <- dplyr::inner_join(df_n_sex, df_p_sex, by = c('sex','disease_status'))
+
+final_df_icu <- dplyr::inner_join(df_n_icu, df_p_icu, by = c('icu_status','disease_status'))
+
+
+final_df_sex <- final_df_sex %>% 
+  dplyr::mutate(nice_format = paste0(N, ' (', round(Percent, 1), '%)'))
+
+final_df_icu <- final_df_icu %>% 
+  dplyr::mutate(nice_format = paste0(N, ' (', round(Percent, 1), '%)'))
+
+
+df_all_categorical <- dplyr::bind_rows(final_df_sex, final_df_icu)
+
+cat_table <- df_all_categorical %>%
+  tidyr::pivot_wider(names_from = disease_status, values_from = nice_format)
 
 
 
 
+contSummary <- function(x, normal = TRUE) {
+  if (normal) {
+    myMean <- round(mean(x, na.rm = TRUE), 2)
+    mySD <- round(sd(x, na.rm = TRUE), 2)
+    
+    summary_string <- paste0(myMean, " (", mySD, ")")
+    } else {
+    myMedian <- round(median(x, na.rm = TRUE), 2)
+    myIQR <- round(IQR(x, na.rm = TRUE), 2)
+
+    summary_string <- paste0(myMedian, " [", myIQR, "]")
+    }
+  return(summary_string)
+}
 
 
 
+pos_vars <- clean_data %>% filter(disease_status == "Positive")
+neg_vars <- clean_data %>% filter(disease_status == "Negative")
 
-table -cat
 
-prop.table -cat
+pos_summary <- data.frame(apply(pos_vars %>% select(age, ferritin.ng.ml., lactate.mmol.l.), 2, contSummary))
+neg_summary <- data.frame(apply(neg_vars %>% select(age, ferritin.ng.ml., lactate.mmol.l.), 2, contSummary))
 
-as.data.frame
 
-dplyr rename freq to percent
+cont_table <- merge(pos_summary, neg_summary, by = "row.names")
+colnames(cont_table) <- c("Variables", "Covid.Positive", "Covid.Negative")
 
-bind_rows()
 
-mutate
+print(cont_table)
 
-#data.analytics2 - cont. apply to columns in pos and neg
+
+final_table <- df_all_categorical %>%
+  dplyr::select(c("sex", "icu_status", "Covid.Positive", "Covid.Negative")) %>% 
+  dplyr::rename(Variables = Var1, Covid.Positive = `Covid-19 Positive`, Covid.Negative = `Covid-19 Negative`)
+
+
+
+cont_table <- merge(pos_summary, neg_summary, by = "row.names")
+
+                                 
+```
+
+
+
+```{r}
 
 ```
 
@@ -172,50 +277,52 @@ library(tidyr)
 library(tibble)
 library(viridis)
 
+
+# filtering the data for the 10 genes 
 heatmap_data <- clean_data %>%
   dplyr::filter(Gene %in% c('ABCA1','ABCA2', 'ABAT', 'A2M', 'A1BG', 'AAMDC', 'ABCA8','ABCA10','ABCA7','AASS')) %>% 
-  tidyr::pivot_wider(names_from = Gene, values_from = Expression)
+  tidyr::pivot_wider(names_from = Gene, values_from = Expression) # reshaping the data from long to wide format 
 
 
+# selecting the columns corresponding to the genes of interest to create matrix 
 heatmap_matrix <- heatmap_data %>%
-  select(all_of(c('ABCA1', 'ABCA2', 'ABAT','A2M', 'A1BG','AAMDC','ABCA8','ABCA10','ABCA7','AASS'))) #%>%
-  #as.matrix()
+  select(all_of(c('ABCA1', 'ABCA2', 'ABAT','A2M', 'A1BG','AAMDC','ABCA8','ABCA10','ABCA7','AASS'))) %>%
+  as.matrix()
 
-#heatmap_matrix <- as.data.frame(heatmap_matrix)
+# heatmap_matrix <- as.data.frame(heatmap_matrix) 
 
 
-row.names(heatmap_matrix) <- heatmap_data$ParticipantID
+row.names(heatmap_matrix) <- heatmap_data$ParticipantID # 'participantID' column us used as row names for matrix
 
-heatmap_matrix <- as.data.frame(t(heatmap_matrix))
+heatmap_matrix <- as.data.frame(t(heatmap_matrix)) # transpise the matrix s othe genes are rows and participants are columns 
 
-annotation_data <- heatmap_data %>%
+annotation_data <- heatmap_data %>% # selecting 'sex' and 'icu_status' columns as annotations 
   dplyr::select('sex', 'icu_status')
 
 
-row.names(annotation_data) <- colnames(heatmap_matrix)
+row.names(annotation_data) <- colnames(heatmap_matrix) # column names are assigned as row names which ensures that the annotations align with the columns in the heatmap 
 
-annotation_data <- as.data.frame(annotation_data)
-
-table(annotation_data)
+annotation_data <- as.data.frame(annotation_data) 
 
 
+# list is created to define the colors for each annotation 
 annotation_colors <- list(
   sex = c('male' = 'aquamarine4', 'female' = 'pink'),
   icu_status = c('yes' = 'royalblue', 'no' = 'deepskyblue'))
 
 pheatmap(heatmap_matrix,
-         color = viridis::turbo(500),
-         annotation_col = annotation_data,
-         annotation_colors = annotation_colors,
-         clustering_distance_rows = 'euclidean',
-         clustering_distance_cols = 'euclidean',
-         clustering_method = 'complete',
-         show_rownames = TRUE,
-         show_colnames = FALSE,
-         fontsize_row = 5,
-         annotation_legend = TRUE,
-         annotation_names_col = TRUE,
-         main = 'Heatmap of Gene Expression with Categorical Covariates: Sex, ICU Status)')
+         color = viridis::turbo(500), # color palette applied to represent expression levels 
+         annotation_col = annotation_data, # annotations 'sex' and 'icu_status' are applied to annotations
+         annotation_colors = annotation_colors, # predefined colors are specified 
+         clustering_distance_rows = 'euclidean', # euclidean distance is used to cluster genes 
+         clustering_distance_cols = 'euclidean', # euclidean distance is used to cluster participants 
+         clustering_method = 'complete', # complete linkage used for clustering 
+         show_rownames = TRUE, # 'genes' displayed 
+         show_colnames = FALSE, # 'particiapntID' not displayed 
+         fontsize_row = 5, # font size 
+         annotation_legend = TRUE, # annotation legend displayed 
+         annotation_names_col = TRUE, # names of annotation columns displayed 
+         main = 'Heatmap of Gene Expression with Categorical Covariates: Sex, ICU Status)') # title 
 
 ```
 
@@ -223,21 +330,25 @@ pheatmap(heatmap_matrix,
 #	Going through the documentation for ggplot2, generate a plot type that we did not previously discuss in class that describes your data in a new and unique way (5 pts) 
 #install.packages('gganimate')
 
+#https://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html#Density%20Plot used this site to create a bubble plot 
+
 library(ggplot2)
 library(dplyr)
 
+
+# mapping 'age' to x axis and 'expression' to y axis, 'ferritin' to size of bubbles and color of bubbles 
 ggplot(clean_data, aes(x = age, y = Expression, size = ferritin.ng.ml., color = ferritin.ng.ml.)) +
-  geom_point(alpha = 0.6) +
-  scale_size(range = c(3, 7)) +  
-  scale_color_gradient(low = 'pink', high = 'red') +
-  labs(title = "Bubble Plot of Gene Expression (ABCA1) by Age and Ferritin Levels",
-       x = "Age",
-       y = "Gene Expression",
-       size = "Ferritin (ng/ml)", 
-       color = 'Ferritin (ng/mL)') +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
-        axis.title = element_text(face = "bold"))
+  geom_point(alpha = 0.6) + # makes points semi-transparent
+  scale_size(range = c(3, 10)) +  # adjusts range of sizes for the bubbles 
+  scale_color_gradient(low = 'red', high = 'blue') + # gradient color scale for bubbles
+  labs(title = "Bubble Plot of Gene Expression (ABCA1) by Age and Ferritin Levels", # title
+       x = "Age", # x axis label 
+       y = "Gene Expression", # y axis label
+       size = "Ferritin (ng/ml)", # label for size legend 
+       color = 'Ferritin (ng/mL)') + # label fo color legend 
+  theme_minimal() + # minimalistic theme
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"), # centers plot title and bolds it 
+        axis.title = element_text(face = "bold")) # bolds the axis titles 
 
 ```
 
