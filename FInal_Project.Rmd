@@ -52,14 +52,17 @@ plot_data <- clean_data %>% # creating new df for 3 plots by selectin relevant c
 # Tables should report mean (sd) or median [IQR] for continuous variables
 
 #install.packages('tableone') Prof Meghan suggested to use this package to create table 
+#install.packages('kableExtra')
 
 #https://www.rdocumentation.org/packages/tableone/versions/0.13.2/topics/CreateTableOne used this site to work with tableone package 
 
+#install.packages('xtable')
 
 library(tableone)
 library(dplyr)
 library(tidyr)
-
+library(kableExtra)
+library(xtable)
 
 table_data <- clean_data %>% # converts data from long to wide format 
   tidyr::pivot_wider(names_from = Gene, values_from = Expression) %>% #
@@ -81,8 +84,32 @@ continuous_vars <- c("Age", "Ferritin", "Lactate") # defining continuous variabl
 table1 <- CreateTableOne(vars = c(categorical_vars, continuous_vars), # function generates table with cont. and cat. variables
                          strata = "Disease_Status", data = table_data, factorVars = categorical_vars) # stratifying the data by disease_status
 
+# table1_df <- cbind(Variable = rownames(table1_df), table1_df)
+# rownames(table1_df) <- NULL
 
-print(table1, showAllLevels = TRUE, formatOptions = list(big.mark = ",")) # displaying table1
+# table_final <- as.data.frame(print(table1, showAllLevels = TRUE, formatOptions = list(big.mark = ',')))
+# 
+# table_final <- data.frame(table1)
+# 
+# library(kableExtra)
+# directly with a the tableone wrapper for the kable function
+
+
+tabAsStringMatrix <- print(table1, printToggle = FALSE, noSpaces = TRUE)
+## Very crude, but it can work.
+xtable(tabAsStringMatrix)
+## Also exporting to .csv can be automated.
+write.csv(tabAsStringMatrix, file = "tab1.csv")
+
+
+
+
+# tab <- kable(x = table_final, caption = 'Summary Table',
+#              format = 'latex',booktabs = T,
+#              col.names = c('Variable','Overall','COVID-19 Positive','COVID-19 Negative'),
+#              align = c('l','r','r','r'),escape = T) %>%
+#   kable_styling(latex_options = c('striped','hold_position','scale_down'))
+#   add_indent(positions = c(2,3),level_of_indent = 1)
 
 
 ```
