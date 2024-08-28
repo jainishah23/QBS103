@@ -34,10 +34,12 @@ clean_data$icu_status <- as.factor(clean_data$icu_status)
 clean_data$disease_status <- as.factor(clean_data$disease_status)
 
 
+dim(clean_data)
+head(clean_data)
 
 clean_data[clean_data == ' unknown'] <- NA # replaces 'unknown' with 'NA'
+dim(clean_data)
 
-clean_data <- na.omit(clean_data) # removes NA rows 
 
 plot_data <- clean_data %>% # creating new df for 3 plots by selectin relevant columns from 'clean_data' df 
   select(Gene, ParticipantID, Expression, age, ferritin.ng.ml., lactate.mmol.l., sex, icu_status, disease_status) %>% 
@@ -61,8 +63,8 @@ plot_data <- clean_data %>% # creating new df for 3 plots by selectin relevant c
 library(tableone)
 library(dplyr)
 library(tidyr)
-library(kableExtra)
 library(xtable)
+library(stringr)
 
 table_data <- clean_data %>% # converts data from long to wide format 
   tidyr::pivot_wider(names_from = Gene, values_from = Expression) %>% #
@@ -74,6 +76,10 @@ table_data <- clean_data %>% # converts data from long to wide format
     Sex = sex,
     ICU_Status = icu_status,
     Disease_Status = disease_status
+  ) %>% 
+  mutate(
+    Sex = str_to_title(Sex), # converts the values of these two columns to title case
+    ICU_Status = str_to_title(ICU_Status)
   )
 
 
@@ -84,136 +90,20 @@ continuous_vars <- c("Age", "Ferritin", "Lactate") # defining continuous variabl
 table1 <- CreateTableOne(vars = c(categorical_vars, continuous_vars), # function generates table with cont. and cat. variables
                          strata = "Disease_Status", data = table_data, factorVars = categorical_vars) # stratifying the data by disease_status
 
-# table1_df <- cbind(Variable = rownames(table1_df), table1_df)
-# rownames(table1_df) <- NULL
+table1
 
-# table_final <- as.data.frame(print(table1, showAllLevels = TRUE, formatOptions = list(big.mark = ',')))
-# 
-# table_final <- data.frame(table1)
-# 
-# library(kableExtra)
-# directly with a the tableone wrapper for the kable function
+# converts table1 table into a matrix of strings that can be exported 
+# ensures that all levels (male and female, yes and no) are displayed 
+tabAsStringMatrix <- print(table1, showAllLevels = TRUE, printToggle = FALSE, noSpaces = TRUE) 
 
-
-tabAsStringMatrix <- print(table1, printToggle = FALSE, noSpaces = TRUE)
-## Very crude, but it can work.
 xtable(tabAsStringMatrix)
-## Also exporting to .csv can be automated.
-write.csv(tabAsStringMatrix, file = "tab1.csv")
 
+# converts matrix into LaTeX table, adds caption, label, and specifies alignment 
+latex_table <- xtable(tabAsStringMatrix, caption = "Descriptive Statistics Stratified by Disease Status", 
+                      label = "tab:descriptive_stats", align = "lrrrrr")
 
-
-
-# tab <- kable(x = table_final, caption = 'Summary Table',
-#              format = 'latex',booktabs = T,
-#              col.names = c('Variable','Overall','COVID-19 Positive','COVID-19 Negative'),
-#              align = c('l','r','r','r'),escape = T) %>%
-#   kable_styling(latex_options = c('striped','hold_position','scale_down'))
-#   add_indent(positions = c(2,3),level_of_indent = 1)
-
-
-```
-
-
-```{r}
-
-library(dplyr)
-library(tidyr)
-library(knitr)
-
-table_data <- clean_data %>% # converts data from long to wide format 
-  tidyr::pivot_wider(names_from = Gene, values_from = Expression) %>% 
-  dplyr::select(c('age', 'ferritin.ng.ml.', 'lactate.mmol.l.', 'sex', 'icu_status', 'disease_status')) # extracting relevant columns
-
-clean_data <- na.omit(clean_data)
-
-df_n_sex <- as.data.frame(table(clean_data$sex, clean_data$disease_status))
-colnames(df_n_sex) <- c('var1', 'disease_status', 'N')
-
-df_n_icu <- as.data.frame(table(clean_data$icu_status, clean_data$disease_status))
-colnames(df_n_icu) <- c('var1','disease_status', 'N')
-
-
-
-df_p_sex <- as.data.frame(prop.table(table(clean_data$sex, clean_data$disease_status), margin = 2))
-colnames(df_p_sex) <- c('var1', 'disease_status', 'Percent')
-df_p_sex$Percent <- df_p_sex$Percent * 100
-
-df_p_icu <- as.data.frame(prop.table(table(clean_data$icu_status, clean_data$disease_status), margin = 2))
-colnames(df_p_icu) <- c('var1','disease_status','Percent')
-df_p_icu$Percent <- df_p_icu$Percent * 100
-
-
-
-final_df_sex <- dplyr::inner_join(df_n_sex, df_p_sex, by = c('var1','disease_status'))
-
-final_df_icu <- dplyr::inner_join(df_n_icu, df_p_icu, by = c('var1','disease_status'))
-
-
-final_df_sex <- final_df_sex %>% 
-  dplyr::mutate(nice_format = paste0(N, ' (', round(Percent, 1), '%)'))
-
-final_df_icu <- final_df_icu %>% 
-  dplyr::mutate(nice_format = paste0(N, ' (', round(Percent, 1), '%)'))
-
-
-df_all_categorical <- dplyr::bind_rows(final_df_sex, final_df_icu) %>% 
-  dplyr::select(c('var1','disease_status','nice_format'))
-
-cat_table <- df_all_categorical %>%
-  tidyr::pivot_wider(names_from = disease_status, values_from = nice_format) %>% 
-  dplyr::filter(var1 != ' unknown')
-
-
-
-
-contSummary <- function(x, normal = TRUE) {
-  if (normal) {
-    myMean <- round(mean(x, na.rm = TRUE), 2)
-    mySD <- round(sd(x, na.rm = TRUE), 2)
-    
-    summary_string <- paste0(myMean, " (", mySD, ")")
-    } else {
-    myMedian <- round(median(x, na.rm = TRUE), 2)
-    myIQR <- round(IQR(x, na.rm = TRUE), 2)
-
-    summary_string <- paste0(myMedian, " [", myIQR, "]")
-    }
-  return(summary_string)
-}
-
-
-
-pos_vars <- clean_data %>% filter(disease_status == "Positive")
-neg_vars <- clean_data %>% filter(disease_status == "Negative")
-
-
-pos_summary <- as.data.frame(apply(pos_vars %>% 
-                                     dplyr::select(age, ferritin.ng.ml., lactate.mmol.l.), 2, FUN = function(x) {contSummary(x, normal = TRUE)}))
-neg_summary <- as.data.frame(apply(neg_vars %>% 
-                                     dplyr::select(age, ferritin.ng.ml., lactate.mmol.l.), 2, FUN = function(x) {contSummary(x, normal = TRUE)}))
-
-
-cont_table <- merge(pos_summary, neg_summary, by = "row.names")
-colnames(cont_table) <- c("Variables", "Covid.Positive", "Covid.Negative")
-
-
-print(cont_table)
-
-
-final_table <- cat_table %>%
-  dplyr::rename('Variables' = 'var1', 'Covid.Positive' = 'disease state: COVID-19', 'Covid.Negative' = 'disease state: non-COVID-19')
-
-
-
-cont_table <- merge(pos_summary, neg_summary, by = "row.names")
-
-                                 
-```
-
-
-
-```{r}
+# outpits LaTeX table to file name and ensures that the output is in latex format 
+print(latex_table, type = "latex", file = "table1.tex", include.rownames = FALSE)
 
 ```
 
@@ -309,51 +199,50 @@ library(tibble)
 library(viridis)
 
 
+
 # filtering the data for the 10 genes 
 heatmap_data <- clean_data %>%
-  dplyr::filter(Gene %in% c('ABCA1','ABCA2', 'ABAT', 'A2M', 'A1BG', 'AAMDC', 'ABCA8','ABCA10','ABCA7','AASS')) %>% 
+  dplyr::filter(Gene %in% c('ABCA1','AAK1', 'AASDH', 'ABI2', 'ABHD2', 'AAMDC', 'ABI2','ABCA10','ABCA7','AASS')) %>% 
   tidyr::pivot_wider(names_from = Gene, values_from = Expression) # reshaping the data from long to wide format 
 
 
 # selecting the columns corresponding to the genes of interest to create matrix 
 heatmap_matrix <- heatmap_data %>%
-  select(all_of(c('ABCA1', 'ABCA2', 'ABAT','A2M', 'A1BG','AAMDC','ABCA8','ABCA10','ABCA7','AASS'))) %>%
+  select(all_of(c('ABCA1', 'AAK1', 'AASDH','ABI2', 'ABHD2','AAMDC','ABI2','ABCA10','ABCA7','AASS'))) %>%
   as.matrix()
 
-# heatmap_matrix <- as.data.frame(heatmap_matrix) 
-
+length(levels(factor(clean_data$ParticipantID)))
 
 row.names(heatmap_matrix) <- heatmap_data$ParticipantID # 'participantID' column us used as row names for matrix
 
-heatmap_matrix <- as.data.frame(t(heatmap_matrix)) # transpise the matrix s othe genes are rows and participants are columns 
+heatmap_matrix <- as.data.frame(t(heatmap_matrix)) # transpose the matrix s othe genes are rows and participants are columns 
+print(heatmap_matrix)
 
-annotation_data <- heatmap_data %>% # selecting 'sex' and 'icu_status' columns as annotations 
-  dplyr::select('sex', 'icu_status')
-
-
-row.names(annotation_data) <- colnames(heatmap_matrix) # column names are assigned as row names which ensures that the annotations align with the columns in the heatmap 
-
-annotation_data <- as.data.frame(annotation_data) 
+annotation1 <- data.frame(row.names = colnames(heatmap_matrix),
+                         'Sex' = heatmap_data$sex,
+                         'Icu Status' = heatmap_data$icu_status)
 
 
 # list is created to define the colors for each annotation 
 annotation_colors <- list(
-  sex = c('male' = 'aquamarine4', 'female' = 'pink'),
-  icu_status = c('yes' = 'royalblue', 'no' = 'deepskyblue'))
+  Sex = c(' male' = 'aquamarine4', ' female' = 'pink', ' unknown' = 'black'),
+  Icu.Status = c('yes' = 'royalblue', 'no' = 'deepskyblue'))
 
+
+colnames(annotation1) <- c('Sex','ICU Status')
+
+print(annotation1$Sex)
 pheatmap(heatmap_matrix,
-         color = viridis::turbo(500), # color palette applied to represent expression levels 
-         annotation_col = annotation_data, # annotations 'sex' and 'icu_status' are applied to annotations
-         annotation_colors = annotation_colors, # predefined colors are specified 
-         clustering_distance_rows = 'euclidean', # euclidean distance is used to cluster genes 
-         clustering_distance_cols = 'euclidean', # euclidean distance is used to cluster participants 
-         clustering_method = 'complete', # complete linkage used for clustering 
-         show_rownames = TRUE, # 'genes' displayed 
-         show_colnames = FALSE, # 'particiapntID' not displayed 
-         fontsize_row = 5, # font size 
-         annotation_legend = TRUE, # annotation legend displayed 
-         annotation_names_col = TRUE, # names of annotation columns displayed 
-         main = 'Heatmap of Gene Expression with Categorical Covariates: Sex, ICU Status)') # title 
+         color = viridis::turbo(500), # color palette applied to represent expression levels
+         annotation_col = annotation1, # annotations 'sex' and 'icu_status' are applied to annotations
+         annotation_colors = annotation_colors, # predefined colors are specified
+         clustering_distance_rows = 'euclidean', # euclidean distance is used to cluster genes
+         clustering_distance_cols = 'euclidean', # euclidean distance is used to cluster participants
+         show_rownames = TRUE, # 'genes' displayed
+         show_colnames = FALSE, # 'particiapntID' not displayed
+         fontsize = 5, # font size
+         annotation_legend = TRUE, # annotation legend displayed
+         main = 'Heatmap of Gene Expression with Categorical Covariates: Sex, ICU Status)') # title
 
 ```
 
@@ -378,24 +267,12 @@ ggplot(clean_data, aes(x = age, y = Expression, size = ferritin.ng.ml., color = 
        size = "Ferritin (ng/ml)", # label for size legend 
        color = 'Ferritin (ng/mL)') + # label fo color legend 
   theme_minimal() + # minimalistic theme
-  theme(plot.title = element_text(hjust = 0.5, face = "bold"), # centers plot title and bolds it 
+  theme(plot.title = element_text(hjust = 0.2, face = "bold"), # centers plot title and bolds it 
         axis.title = element_text(face = "bold")) # bolds the axis titles 
-
 ```
 
 
-```{r}
-# Submit a LaTeX file and knitted PDF file summarizing your results (20 pts total). This file should include the following sections:
-#Introduction: Brief description of the data set and your gene of choice for your main plots. Additional gene descriptions aren’t required for genes included in your heatmap.
-#	Methods: Brief summary of methods including data source, R version and packages, and clustering algorithm used, as discussed in class. 
-#	Results: Description of the findings of each table/figure (outlined below). While you do not need to provide an extensive analysis of each item, you must provide a brief statement referencing them and then cite the relevant table or figure, as discussed in class. Example: “Gene x did not appear to be associated with covariate y (Figure 2).” Additionally, you must typeset and provide captions/figure legends for each item as discussed in class. Required elements include:
-#	Table of summary statistics
-#Histogram of gene
-#Scatter plot of gene + continuous covariate
-#Boxplot of gene stratified by 2 categorical covariates
-#Heatmap
-#Your selected new plot type
-#References: At a minimum, your references must include the paper that the dataset came from, an original source for your gene description, and R packages used. All references should be cited within the text as shown in class.
 
-```
+
+
 
