@@ -5,8 +5,6 @@ date: "2024-08-20"
 ---
 ```{r}
 
-#jaini
-
 library(dplyr)
 library(tidyr)
 
@@ -36,11 +34,7 @@ clean_data$icu_status <- as.factor(clean_data$icu_status)
 clean_data$disease_status <- as.factor(clean_data$disease_status)
 
 
-dim(clean_data)
-head(clean_data)
-
 clean_data[clean_data == ' unknown'] <- NA # replaces 'unknown' with 'NA'
-dim(clean_data)
 
 
 plot_data <- clean_data %>% # creating new df for 3 plots by selectin relevant columns from 'clean_data' df 
@@ -204,21 +198,19 @@ library(viridis)
 
 # filtering the data for the 10 genes 
 heatmap_data <- clean_data %>%
-  dplyr::filter(Gene %in% c('ABCA1','AAK1', 'AASDH', 'ABI2', 'ABHD2', 'AAMDC', 'ABI2','ABCA10','ABCA7','AASS')) %>% 
+  dplyr::filter(Gene %in% c('ABCA1','AAK1', 'AASDH', 'ABI2', 'ABHD2', 'AAMDC', 'ABI2','ABCA10','ABCA7','AASS','ABAT')) %>% 
   tidyr::pivot_wider(names_from = Gene, values_from = Expression) # reshaping the data from long to wide format 
 
 
 # selecting the columns corresponding to the genes of interest to create matrix 
 heatmap_matrix <- heatmap_data %>%
-  select(all_of(c('ABCA1', 'AAK1', 'AASDH','ABI2', 'ABHD2','AAMDC','ABI2','ABCA10','ABCA7','AASS'))) %>%
+  select(all_of(c('ABCA1', 'AAK1', 'AASDH','ABI2', 'ABHD2','AAMDC','ABI2','ABCA10','ABCA7','AASS','ABAT'))) %>%
   as.matrix()
-
-length(levels(factor(clean_data$ParticipantID)))
 
 row.names(heatmap_matrix) <- heatmap_data$ParticipantID # 'participantID' column us used as row names for matrix
 
 heatmap_matrix <- as.data.frame(t(heatmap_matrix)) # transpose the matrix s othe genes are rows and participants are columns 
-print(heatmap_matrix)
+
 
 annotation1 <- data.frame(row.names = colnames(heatmap_matrix),
                          'Sex' = heatmap_data$sex,
@@ -233,7 +225,6 @@ annotation_colors <- list(
 
 colnames(annotation1) <- c('Sex','ICU Status')
 
-print(annotation1$Sex)
 pheatmap(heatmap_matrix,
          color = viridis::turbo(500), # color palette applied to represent expression levels
          annotation_col = annotation1, # annotations 'sex' and 'icu_status' are applied to annotations
@@ -269,8 +260,14 @@ ggplot(clean_data, aes(x = age, y = Expression, size = ferritin.ng.ml., color = 
        size = "Ferritin (ng/ml)", # label for size legend 
        color = 'Ferritin (ng/mL)') + # label fo color legend 
   theme_minimal() + # minimalistic theme
-  theme(plot.title = element_text(hjust = 0.2, face = "bold"), # centers plot title and bolds it 
-        axis.title = element_text(face = "bold")) # bolds the axis titles 
+  theme(plot.title = element_text(hjust = 0.2, face = "bold",size = 10), # centers plot title and bolds it 
+        axis.title = element_text(face = "bold"),  #bolds the axis titles
+        legend.key.size = unit(0.25, 'cm'), #change legend key size
+        legend.key.height = unit(0.25, 'cm'), #change legend key height
+        legend.key.width = unit(0.25, 'cm'),
+        legend.text = element_text(size = 7), 
+        legend.title = element_text(size = 7))  
+
 ```
 
 
